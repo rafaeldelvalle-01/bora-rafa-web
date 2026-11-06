@@ -146,6 +146,65 @@ input[type=text],input[type=number],input[type=email],input[type=password]{backg
 .wflash.pop{animation:wf 2.6s ease}
 @keyframes wf{0%{max-height:0;opacity:0;padding:0 12px}8%{max-height:60px;opacity:1;padding:10px 12px}80%{max-height:60px;opacity:1;padding:10px 12px}100%{max-height:0;opacity:0;padding:0 12px}}
 body.web .apponly{display:none!important}
+
+/* ---------- PC / telas grandes ---------- */
+.dash>div{min-width:0}
+@media (min-width:900px){
+  body{max-width:none;padding:32px 44px 48px 276px;background:radial-gradient(1200px 600px at 70% -10%,#1a2410 0%,var(--bg) 55%)}
+  .view.on{max-width:1180px;margin:0 auto}
+  h1{font-size:34px}
+  h2{margin:26px 0 12px}
+  nav{top:0;bottom:0;left:0;right:auto;width:236px;border-top:none;border-right:1px solid var(--line);justify-content:flex-start;padding:28px 14px;background:#0b0c0fcc;backdrop-filter:blur(10px)}
+  nav div{flex-direction:column;gap:4px}
+  nav div::before{content:'Bora, Rafa';display:block;font-size:20px;font-weight:800;color:var(--txt);padding:6px 12px 6px 56px;margin-bottom:22px;line-height:40px;background:url(icons/icon-192.png) no-repeat 10px center/36px;border-radius:10px}
+  nav button{flex:none;text-align:left;padding:13px 16px;border-radius:12px;font-size:15px;color:var(--mut)}
+  nav button:hover{background:#161a21;color:var(--txt)}
+  nav button.on{background:#1b2014;color:var(--acc)}
+  nav button[data-v=hoje]::before{content:'🏠';margin-right:12px}
+  nav button[data-v=plano]::before{content:'🗓️';margin-right:12px}
+  nav button[data-v=premios]::before{content:'🎁';margin-right:12px}
+  nav button[data-v=eu]::before{content:'📊';margin-right:12px}
+  nav button[data-v=ajustes]::before{content:'⚙️';margin-right:12px}
+  .top{margin-bottom:16px}
+  .pts{font-size:16px;padding:8px 16px}
+  .bar{height:10px}
+  #banners{max-width:760px}
+  #v-hoje .dash{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:0 28px;grid-template-areas:"hoje semana" "hoje agua" "hoje passos";align-items:start}
+  .s-hoje{grid-area:hoje}.s-semana{grid-area:semana}.s-agua{grid-area:agua}.s-passos{grid-area:passos}
+  .card{padding:20px;border-radius:20px;transition:border-color .2s}
+  .card:hover{border-color:#333845}
+  .msg{font-size:22px}
+  button{transition:filter .15s,transform .1s}
+  button:hover{filter:brightness(1.08)}
+  .big{max-width:none}
+  /* planejar: semana em 7 colunas */
+  .week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px}
+  .day{flex-direction:column;align-items:stretch;gap:10px;padding:14px 10px}
+  .day .n{font-size:15px}
+  .seg{flex-wrap:wrap}
+  .seg button{flex:1 1 calc(50% - 4px);padding:8px 4px}
+  #planBox>.card,#planBox>.big,#planBox>.ghost{max-width:760px}
+  .chips button{padding:20px 0;font-size:18px}
+  /* prêmios em grade */
+  #rwList{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+  #rwList .rw{margin:0}
+  #v-premios>.card{max-width:760px}
+  /* estudo em 2 colunas */
+  #euBox{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 24px;align-items:start}
+  #euBox>.sec:first-child{grid-column:1/-1}
+  /* ajustes em 2 colunas */
+  #v-ajustes .secs{columns:2;column-gap:28px}
+  #v-ajustes .sec{break-inside:avoid;display:inline-block;width:100%}
+  #v-ajustes .sec h2{margin-top:18px}
+  /* janelas */
+  .sheet{align-items:center}
+  .sheet .in{border-radius:22px;max-width:620px;max-height:86vh}
+  .toast{top:24px}
+}
+@media (min-width:1400px){
+  #euBox{grid-template-columns:repeat(3,minmax(0,1fr))}
+  #v-ajustes .secs{columns:3}
+}
 </style>
 </head>
 <body>
@@ -159,23 +218,25 @@ body.web .apponly{display:none!important}
   </div>
   <div class="bar"><i id="lvlbar"></i></div>
   <div id="banners" style="margin-top:14px"></div>
-  <h2>Hoje</h2>
+  <div class="dash">
+  <div class="s-hoje"><h2>Hoje</h2>
   <div class="card" id="todayCard"></div>
-  <div class="card" id="whyCard" style="display:none"></div>
-  <h2>Passos</h2>
-  <div class="card" id="stepCard"></div>
-  <h2>Água</h2>
+  <div class="card" id="whyCard" style="display:none"></div></div>
+  <div class="s-passos"><h2>Passos</h2>
+  <div class="card" id="stepCard"></div></div>
+  <div class="s-agua"><h2>Água</h2>
   <div class="card">
     <div class="msg" id="waterTxt"></div>
     <div class="water" id="water"></div>
     <div class="wbtn"><button id="w1">+1 copo<br><small>250 ml</small></button><button id="w2">+ garrafa</button><button id="w0" class="u">↩</button></div>
     <div id="wFlash" class="wflash"></div>
-  </div>
-  <h2>Esta semana</h2>
+  </div></div>
+  <div class="s-semana"><h2>Esta semana</h2>
   <div class="stat">
     <div><b id="sWeek">0/0</b><span>treinos</span></div>
     <div><b id="sStreak">0</b><span>semanas completas seguidas<br><span id="sShield"></span></span></div>
     <div><b id="sTotal">0</b><span>treinos no total</span></div>
+  </div></div>
   </div>
 </section>
 
@@ -258,7 +319,7 @@ body.web .apponly{display:none!important}
   <div class="card" id="levels"></div>
   <h2 class="apponly">Atualização</h2>
   <div class="card apponly">
-    <div class="row"><span>Versão instalada</span><b id="verN">v1.6.1</b></div>
+    <div class="row"><span>Versão instalada</span><b id="verN">v1.6.2</b></div>
     <div class="sub">O botão abre a página de versões no navegador. Se lá aparecer um número maior, baixe o BoraRafa.apk e instale por cima.</div>
     <button class="big" id="upd">Verificar atualização</button>
   </div>
@@ -318,6 +379,7 @@ body.web .apponly{display:none!important}
 /* ---------- estado ---------- */
 const KEY='boraRafa.v2';
 const DEF={plan:{},done:{},water:{},bonus:{},planned:{},pts:0,earned:0,spent:0,donePts:{},letter:{},checks:{},rewards:[],redeemed:[],gyms:[],log:[],where:{},feel:{},why:{},hM:'06:30',hT:'14:00',hN:'19:00',locWork:{},steps:{},stepPts:{},stepGoal:6000,cal:{},calOn:false,dur:{},loads:{},alarmOn:true,hWake:'05:50',wLearn:true,bottleMl:730,waterGoalMl:2000,meta:3,wOn:true,wEvery:2,wFrom:'09:00',wTo:'21:00',hPlan:'19:00'};
+let DEV='';try{DEV=localStorage.getItem('boraDev')||'';if(!DEV){DEV=((window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform())?'cel-':'pc-')+Math.random().toString(36).slice(2,8);localStorage.setItem('boraDev',DEV)}}catch(e){DEV='dev-'+Math.random().toString(36).slice(2,8)}
 let S=JSON.parse(JSON.stringify(DEF));
 try{const r=localStorage.getItem(KEY);if(r)S=Object.assign(S,JSON.parse(r))}catch(e){}
 if(!S.earned&&S.pts)S.earned=S.pts;
@@ -329,7 +391,6 @@ function logE(o){o.t=Date.now();S.log.push(o);if(S.log.length>4000)S.log.splice(
 const PREMIOS=[['Açaí com muito leite condensado e leite ninho 🍧',120],['Pizzaaaa 🍕',250],['Rodízio japonês 🍣',500],['Hambúrguer artesanal 🍔',700],['Aquilo que você sempre quis no Mercado Livre 📦',1000],['Aquilo que você sempre quis na Amazon 📦',1500]];
 if(!S.seeded){S.rewards=S.rewards||[];PREMIOS.forEach(([n,c])=>{if(!S.rewards.some(r=>r.name===n))S.rewards.push({name:n,cost:c})});S.rewards.sort((a,b)=>a.cost-b.cost);S.seeded=1;try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 /* ---------- pontos por aparelho (pra somar certo entre celular e PC) ---------- */
-let DEV='';try{DEV=localStorage.getItem('boraDev')||'';if(!DEV){DEV=((window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform())?'cel-':'pc-')+Math.random().toString(36).slice(2,8);localStorage.setItem('boraDev',DEV)}}catch(e){DEV='dev-'+Math.random().toString(36).slice(2,8)}
 function ensureCounters(){['earned','spent'].forEach(f=>{const d=Object.getOwnPropertyDescriptor(S,f);if(d&&d.get)return;const by=f+'By';
   if(!S[by]||typeof S[by]!=='object'){S[by]={};const v=+(d?d.value:0)||0;if(v)S[by][DEV]=v}
   Object.defineProperty(S,f,{enumerable:true,configurable:true,get(){return Object.values(this[by]).reduce((a,b)=>a+(+b||0),0)},set(v){const cur=this[f];this[by][DEV]=(this[by][DEV]||0)+(v-cur)}})})}
@@ -832,7 +893,7 @@ const pct=(a,b)=>b?Math.round(a/b*100):null;
 function daysRange(n){const t=today(),o=[];for(let i=n;i>=1;i--)o.push(key(addD(t,-i)));o.push(key(t));return o}
 function firstDay(){const ks=[].concat(Object.keys(S.plan),Object.keys(S.done),Object.keys(S.water)).filter(k=>S.plan[k]&&S.plan[k].g||S.done[k]||S.water[k]).sort();const l=S.log.length?key(new Date(S.log[0].t)):null;const a=ks[0]||l;return a&&l&&l<a?l:a}
 function bar(label,val,max,txt,cls){return '<div class="hb '+(cls||'')+'"><span>'+label+'</span><div class="tr"><i style="width:'+(max?Math.min(100,val/max*100):0)+'%"></i></div><b>'+txt+'</b></div>'}
-function card(t,h,sub){return '<h2>'+t+'</h2><div class="card">'+(sub?'<div class="sub" style="margin-top:0;margin-bottom:6px">'+sub+'</div>':'')+h+'</div>'}
+function card(t,h,sub){return '<div class="sec"><h2>'+t+'</h2><div class="card">'+(sub?'<div class="sub" style="margin-top:0;margin-bottom:6px">'+sub+'</div>':'')+h+'</div></div>'}
 function renderEu(){
   const box=document.getElementById('euBox');const f=firstDay();const t=key(today());
   const all=f?(()=>{const o=[];let d=fromKey(f);while(key(d)<=t){o.push(key(d));d=addD(d,1)}return o})():[];
@@ -905,6 +966,8 @@ document.getElementById('csv').onclick=async()=>{const lines=['data,dia_semana,o
   lines.push('','momento,evento,tipo,acao,atraso_min');S.log.forEach(x=>{if(x.e==='open')return;const dt=new Date(x.t);lines.push([key(dt)+' '+pad(dt.getHours())+':'+pad(dt.getMinutes()),x.e,x.kind||x.src||x.w||'',x.act||x.auto||'',x.lag==null?'':x.lag].join(','))});
   try{await navigator.clipboard.writeText(lines.join('\n'));toast('Copiado! Cola numa planilha ou aqui no Claude.')}catch(e){toast('Não deu pra copiar')}};
 
+(function(){const v=document.getElementById('v-ajustes');const kids=[...v.children];const wrap=document.createElement('div');wrap.className='secs';let cur=null;
+  kids.forEach(el=>{if(el.tagName==='H1')return;if(el.tagName==='H2'){cur=document.createElement('div');cur.className='sec'+(el.classList.contains('apponly')?' apponly':'');wrap.appendChild(cur)}if(!cur){cur=document.createElement('div');cur.className='sec';wrap.appendChild(cur)}cur.appendChild(el)});v.appendChild(wrap)})();
 function renderAll(){renderHoje();renderPlano();renderPremios();renderEu();renderAjustes();renderSync()}
 renderAll();
 initNotif().then(()=>{renderHoje();reschedule()});
