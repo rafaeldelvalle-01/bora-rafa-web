@@ -258,7 +258,7 @@ body.web .apponly{display:none!important}
   <div class="card" id="levels"></div>
   <h2 class="apponly">Atualização</h2>
   <div class="card apponly">
-    <div class="row"><span>Versão instalada</span><b id="verN">v1.6.0</b></div>
+    <div class="row"><span>Versão instalada</span><b id="verN">v1.6.1</b></div>
     <div class="sub">O botão abre a página de versões no navegador. Se lá aparecer um número maior, baixe o BoraRafa.apk e instale por cima.</div>
     <button class="big" id="upd">Verificar atualização</button>
   </div>
@@ -323,6 +323,7 @@ try{const r=localStorage.getItem(KEY);if(r)S=Object.assign(S,JSON.parse(r))}catc
 if(!S.earned&&S.pts)S.earned=S.pts;
 if(!S.waterMl){Object.keys(S.water||{}).forEach(k=>S.water[k]=(S.water[k]||0)*250);(S.log||[]).forEach(x=>{if(x.e==='agua'&&!x.ml)x.ml=250});S.waterMl=1;S.waterBy=null;ensureWater();if(!S.bottleMl)S.bottleMl=730;if(!S.waterGoalMl)S.waterGoalMl=2000;try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 ['log'].forEach(x=>{if(!Array.isArray(S[x]))S[x]=[]});['where','feel','why','locWork','steps','stepPts','cal','dur','loads'].forEach(x=>{if(!S[x])S[x]={}});['stepGoal','alarmOn','hWake','wLearn'].forEach(x=>{if(S[x]===undefined)S[x]=DEF[x]});if(!S.hT)S.hT='14:00';
+if(!S.recov45&&!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform()))S.recov45=1;
 if(!S.recov45){S.earned=(S.earned||0)+45;S.recov45=1;S._recovMsg=1;try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 function logE(o){o.t=Date.now();S.log.push(o);if(S.log.length>4000)S.log.splice(0,S.log.length-4000);save()}
 const PREMIOS=[['Açaí com muito leite condensado e leite ninho 🍧',120],['Pizzaaaa 🍕',250],['Rodízio japonês 🍣',500],['Hambúrguer artesanal 🍔',700],['Aquilo que você sempre quis no Mercado Livre 📦',1000],['Aquilo que você sempre quis na Amazon 📦',1500]];
@@ -416,7 +417,7 @@ function buildPlan(m,pres,lucas){
 const FB_CFG={apiKey:"AIzaSyBarOsR6hIDwrO9nGpAixCj3fqyc4SO_g4",authDomain:"bora-rafa.firebaseapp.com",projectId:"bora-rafa",storageBucket:"bora-rafa.firebasestorage.app",messagingSenderId:"183089232262",appId:"1:183089232262:web:0aa8f3e46ef70f76391407"};
 const FBV='10.14.1';
 const SYNC={ready:false,user:null,docRef:null,lastSync:0,applying:false,timer:null,err:''};
-const LOCAL_ONLY=['cal','lastAutoBk','migN','_exact','_files','_stepsOk','_recovMsg','updatedAt'];
+const LOCAL_ONLY=['cal','lastAutoBk','migN','_exact','_files','_stepsOk','_recovMsg','updatedAt','syncedOnce'];
 const DAYMAX=['steps'];
 const DAYUNION=['done','planned','bonus','stepPts','locWork'];
 const DAYMAPS=['plan','where','feel','why','dur','letter','donePts','checks','pick'];
@@ -442,11 +443,13 @@ async function syncInit(){try{
     if(u){SYNC.docRef=firebase.firestore().collection('users').doc(u.uid).collection('data').doc('state');
       SYNC.unsub=SYNC.docRef.onSnapshot(snap=>{if(snap.metadata.hasPendingWrites)return;const d=snap.data();
         if(d&&d.json){try{const R=JSON.parse(d.json);if(d.dev===DEV&&(R.updatedAt||0)<=(S.updatedAt||0)){SYNC.lastSync=Date.now();renderSync();return}
-          const M=mergeState(forCloudFull(),R);SYNC.applying=true;const keep={};LOCAL_ONLY.forEach(f=>{if(S[f]!==undefined)keep[f]=S[f]});
-          S=Object.assign(JSON.parse(JSON.stringify(DEF)),M,keep);ensureCounters();ensureWater();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}SYNC.applying=false;
+          const native=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
+          // primeiro login: no PC, adota o que vem da nuvem; no celular, os dados dele têm prioridade
+          const M=S.syncedOnce?mergeState(forCloudFull(),R):native?mergeState(forCloudFull(),Object.assign({},R,{updatedAt:0})):R;SYNC.applying=true;const keep={};LOCAL_ONLY.forEach(f=>{if(S[f]!==undefined)keep[f]=S[f]});
+          S=Object.assign(JSON.parse(JSON.stringify(DEF)),M,keep);S.syncedOnce=1;ensureCounters();ensureWater();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}SYNC.applying=false;
           SYNC.lastSync=Date.now();renderAll();if(typeof reschedule==='function')reschedule();if(typeof syncFences==='function')syncFences();
           if(JSON.stringify(forCloud())!==JSON.stringify(R))pushCloud()}catch(e){SYNC.err=String(e)}}
-        else pushCloud();renderSync()},e=>{SYNC.err=e.message;renderSync()})}
+        else{S.syncedOnce=1;try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}pushCloud()}renderSync()},e=>{SYNC.err=e.message;renderSync()})}
     renderSync()});
 }catch(e){SYNC.err='sem internet ou bloqueado';renderSync()}}
 function forCloudFull(){const o=JSON.parse(JSON.stringify(S));delete o.earned;delete o.spent;return o}
