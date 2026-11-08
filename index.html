@@ -291,6 +291,8 @@ body.web .apponly{display:none!important}
   <h1>Ajustes</h1>
   <h2>Sincronização (celular e PC)</h2>
   <div class="card" id="syncBox"></div>
+  <h2 class="apponly">Galaxy Watch / Samsung Health</h2>
+  <div class="card apponly" id="hcBox"></div>
   <h2>Lembretes de treino</h2>
   <div class="card">
     <div class="row"><span>Treino de manhã</span><input type="time" id="hM"></div>
@@ -362,7 +364,7 @@ body.web .apponly{display:none!important}
   <div class="card" id="levels"></div>
   <h2 class="apponly">Atualização</h2>
   <div class="card apponly">
-    <div class="row"><span>Versão instalada</span><b id="verN">v1.7.0</b></div>
+    <div class="row"><span>Versão instalada</span><b id="verN">v1.8.0</b></div>
     <div class="sub">O botão abre a página de versões no navegador. Se lá aparecer um número maior, baixe o BoraRafa.apk e instale por cima.</div>
     <button class="big" id="upd">Verificar atualização</button>
   </div>
@@ -505,9 +507,9 @@ function todayLetter(k){return S.letter[k]||(S.pick&&S.pick[k])||nextLetter(k)}
 function lastDoneBefore(k){const ks=Object.keys(S.done).filter(x=>x<k).sort();return ks.length?ks[ks.length-1]:null}
 
 function markDone(k,kind){if(S.done[k])return;kind=kind||'gym';const p=S.plan[k]||{};
-  let n=kind==='casa'?5:(p.g?10:15);let why=kind==='casa'?'treino em casa':(p.g?'treino feito':'treino extra');
+  let n=kind==='casa'?5:(p.g?10:15);let why=kind==='casa'?'treino em casa':kind==='outra'?'atividade registrada':(p.g?'treino feito':'treino extra');
   const prev=lastDoneBefore(k);if(prev&&(fromKey(k)-fromKey(prev))/864e5>=7){n*=2;why='voltou! pontos em dobro'}
-  S.done[k]=kind;S.donePts[k]=n;logE({e:'treino',k,kind,auto:markDone._src||''});markDone._src='';if(kind!=='casa')S.letter[k]=todayLetter(k);
+  S.done[k]=kind;S.donePts[k]=n;logE({e:'treino',k,kind,auto:markDone._src||''});markDone._src='';if(kind==='gym')S.letter[k]=todayLetter(k);
   addPts(n,why);checkWeekBonus(fromKey(k));pushState();renderAll()}
 
 /* ---------- gerador do plano ---------- */
@@ -526,10 +528,10 @@ function buildPlan(m,pres,lucas){
 const FB_CFG={apiKey:"AIzaSyBarOsR6hIDwrO9nGpAixCj3fqyc4SO_g4",authDomain:"bora-rafa.firebaseapp.com",projectId:"bora-rafa",storageBucket:"bora-rafa.firebasestorage.app",messagingSenderId:"183089232262",appId:"1:183089232262:web:0aa8f3e46ef70f76391407"};
 const FBV='10.14.1';
 const SYNC={ready:false,user:null,docRef:null,lastSync:0,applying:false,timer:null,err:''};
-const LOCAL_ONLY=['cal','lastAutoBk','migN','_exact','_files','_stepsOk','_recovMsg','updatedAt','syncedOnce'];
-const DAYMAX=['steps'];
+const LOCAL_ONLY=['cal','lastAutoBk','migN','_exact','_files','_stepsOk','_recovMsg','updatedAt','syncedOnce','hcOn','_hcAt'];
+const DAYMAX=['steps','burn'];
 const DAYUNION=['done','planned','bonus','stepPts','locWork'];
-const DAYMAPS=['plan','where','feel','why','dur','letter','donePts','checks','pick'];
+const DAYMAPS=['plan','where','feel','why','dur','letter','donePts','checks','pick','hr'];
 function mergeState(L,R){const o=JSON.parse(JSON.stringify(L));const newer=(R.updatedAt||0)>(L.updatedAt||0);
   DAYMAX.forEach(f=>{o[f]=Object.assign({},L[f]||{});Object.entries(R[f]||{}).forEach(([k,v])=>{o[f][k]=Math.max(+o[f][k]||0,+v||0)})});
   DAYUNION.forEach(f=>{o[f]=Object.assign({},L[f]||{});Object.entries(R[f]||{}).forEach(([k,v])=>{if(v&&!o[f][k])o[f][k]=v})});
@@ -541,8 +543,10 @@ function mergeState(L,R){const o=JSON.parse(JSON.stringify(L));const newer=(R.up
   o.loads={};new Set([...Object.keys(L.loads||{}),...Object.keys(R.loads||{})]).forEach(ex=>{const m={};((newer?L:R).loads||{})[ex]&&(newer?L:R).loads[ex].forEach(x=>m[x[0]]=x);((newer?R:L).loads||{})[ex]&&(newer?R:L).loads[ex].forEach(x=>m[x[0]]=x);o.loads[ex]=Object.values(m).sort((a,b)=>a[0]<b[0]?-1:1)});
   const byId=(a,b)=>{const m=Object.assign({},a||{});Object.entries(b||{}).forEach(([id,v])=>{if(!m[id]||(v.u||0)>(m[id].u||0))m[id]=v});return m};
   o.ntFoods=byId(L.ntFoods,R.ntFoods);o.ntRecipes=byId(L.ntRecipes,R.ntRecipes);
+  o.acts={};new Set([...Object.keys(L.acts||{}),...Object.keys(R.acts||{})]).forEach(k=>{o.acts[k]=byId((L.acts||{})[k],(R.acts||{})[k])});
+  const bs=new Map();[...(R.bodyLog||[]),...(L.bodyLog||[])].forEach(x=>bs.set(x.d,Object.assign({},bs.get(x.d)||{},x)));o.bodyLog=[...bs.values()];
   o.ntMeals={};new Set([...Object.keys(L.ntMeals||{}),...Object.keys(R.ntMeals||{})]).forEach(k=>{o.ntMeals[k]=byId((L.ntMeals||{})[k],(R.ntMeals||{})[k])});
-  const skip=new Set([...DAYMAX,...DAYUNION,...DAYMAPS,'earnedBy','spentBy','waterBy','water','ntFoods','ntRecipes','ntMeals','log','redeemed','loads','earned','spent',...LOCAL_ONLY]);
+  const skip=new Set([...DAYMAX,...DAYUNION,...DAYMAPS,'earnedBy','spentBy','waterBy','water','ntFoods','ntRecipes','ntMeals','acts','bodyLog','log','redeemed','loads','earned','spent',...LOCAL_ONLY]);
   Object.keys(R).forEach(f=>{if(skip.has(f)||f.startsWith('_'))return;if(newer||o[f]===undefined)o[f]=R[f]});
   o.updatedAt=Math.max(L.updatedAt||0,R.updatedAt||0);delete o.earned;delete o.spent;return o}
 function forCloud(){const o=JSON.parse(JSON.stringify(S));LOCAL_ONLY.forEach(f=>{if(f!=='updatedAt')delete o[f]});Object.keys(o).forEach(f=>{if(f.startsWith('_'))delete o[f]});delete o.earned;delete o.spent;return o}
@@ -558,7 +562,7 @@ async function syncInit(){try{
           const native=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
           // primeiro login: no PC, adota o que vem da nuvem; no celular, os dados dele têm prioridade
           const M=S.syncedOnce?mergeState(forCloudFull(),R):native?mergeState(forCloudFull(),Object.assign({},R,{updatedAt:0})):R;SYNC.applying=true;const keep={};LOCAL_ONLY.forEach(f=>{if(S[f]!==undefined)keep[f]=S[f]});
-          S=Object.assign(JSON.parse(JSON.stringify(DEF)),M,keep);S.syncedOnce=1;ensureCounters();ensureWater();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}SYNC.applying=false;
+          S=Object.assign(JSON.parse(JSON.stringify(DEF)),M,keep);S.syncedOnce=1;ensureCounters();ensureWater();ntInit();actInit();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}SYNC.applying=false;
           SYNC.lastSync=Date.now();renderAll();if(typeof reschedule==='function')reschedule();if(typeof syncFences==='function')syncFences();
           if(JSON.stringify(forCloud())!==JSON.stringify(R))pushCloud()}catch(e){SYNC.err=String(e)}}
         else{S.syncedOnce=1;try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}pushCloud()}renderSync()},e=>{SYNC.err=e.message;renderSync()})}
@@ -701,16 +705,19 @@ function renderHoje(){
   const fer=feriado(k);
   if(p.g){let when=p.g==='m'?'de manhã ('+S.hM+')':p.g==='t'?'à tarde ('+S.hT+')':'à noite ('+S.hN+')';
     const cf=!d&&conflict(k,p.g);if(cf)when+='. <span style="color:var(--warn)">⚠️ Você tem "'+esc(cf)+'" nesse horário</span>';
-    html=d?'<div class="msg">'+pick(POS,s)+(S.dur[k]?'</div><div class="sub">Você ficou '+S.dur[k]+' min na academia.':'')+'</div><button class="big done" id="undo">✓ '+(d==='casa'?'Treino em casa feito':'Treino feito')+'</button>'
+    html=d?'<div class="msg">'+pick(POS,s)+(S.dur[k]?'</div><div class="sub">Você ficou '+S.dur[k]+' min na academia.':'')+'</div><button class="big done" id="undo">✓ '+(d==='casa'?'Treino em casa feito':d==='outra'?'Dia ativo':'Treino feito')+'</button>'
     :'<div class="msg">'+pick(PRE,s)+'</div><div class="sub">Hoje é dia de academia '+when+'.'+(p.g==='m'?' O Lucas acorda cedo hoje, aproveita.':'')+'</div><button class="big" id="fui">Fui! Marcar treino</button><button class="ghost" id="casa">Não vai dar? Treino de 15 min em casa</button>';}
-  else{html=d?'<div class="msg">Treino extra! Respeito, Rafa.</div><button class="big done" id="undo">✓ Treino extra feito</button>'
+  else{html=d?'<div class="msg">'+(d==='outra'?'Dia ativo! Conta, sim. 💪':'Treino extra! Respeito, Rafa.')+'</div><button class="big done" id="undo">✓ '+(d==='outra'?'Atividade registrada':'Treino extra feito')+'</button>'
     :'<div class="msg">'+(fer?'🎉 '+fer+'! '+pick(FER,s):p.pres?pick(PRES,s):pick(REST,s))+'</div><div class="sub">Hoje não tem treino no plano. Se der vontade, treino extra vale +15.</div><button class="ghost" id="fui">Fui mesmo assim</button>';}
-  if((p.g||(d&&d!=='casa'))&&d!=='casa')html+=treinoBox(k);
+  if((p.g||(d&&d!=='casa'&&d!=='outra'))&&d!=='casa'&&d!=='outra')html+=treinoBox(k);
+  html+=actsHTML(k)+'<button class="addb" id="actAdd">+ Outra atividade (dança, caminhada…)</button>';
   if(d&&d!=='casa'||d==='casa')html+=feelBox(k);
   html+=whereBox(k,dow);
   c.innerHTML=html;bindCtx(k);
   const f=document.getElementById('fui');if(f)f.onclick=()=>markDone(k,'gym');
   const cs=document.getElementById('casa');if(cs)cs.onclick=()=>startTimer(k);
+  document.getElementById('actAdd').onclick=()=>openActSheet(k);
+  c.querySelectorAll('[data-adel]').forEach(b=>b.onclick=()=>{if(!b.dataset.c){b.dataset.c=1;b.textContent='?';return}Object.assign(S.acts[k][b.dataset.adel],{del:1,u:Date.now()});save();renderHoje()});
   bindTreino(k);
   const u=document.getElementById('undo');if(u)u.onclick=()=>{if(c.dataset.c){delete S.done[k];S.earned-=(S.donePts[k]||0);delete S.donePts[k];delete S.letter[k];save();toast('Treino desmarcado');reschedule();renderAll()}else{c.dataset.c=1;toast('Toque de novo pra desmarcar');setTimeout(()=>delete c.dataset.c,2500)}};
   // água
@@ -909,7 +916,11 @@ document.getElementById('gyAdd').onclick=async()=>{const n=document.getElementBy
     S.gyms.push({id:'g'+Date.now(),name:n,type:gyType,lat:pos.coords.latitude,lng:pos.coords.longitude});save();document.getElementById('gyName').value='';
     await syncFences();toast(n+' salva! 📍');renderGyms()}catch(e){toast('Não consegui a localização. Liga o GPS e tenta de novo.')}};
 
-function renderAjustes(){renderGyms();
+function renderHC(){const el=document.getElementById('hcBox');if(!el)return;
+  if(!S.hcOn){el.innerHTML='<div class="sub" style="margin-top:0">Lê sozinho o que o relógio registra: passos, calorias ativas, batimentos, exercícios e peso. Antes, no app <b>Samsung Health</b>: Configurações > Health Connect > permitir que ele compartilhe os dados.</div><button class="big" id="hcGo">Conectar Galaxy Watch</button>';document.getElementById('hcGo').onclick=hcConnect;return}
+  const k=key(today()),hr=S.hr[k];el.innerHTML='<div class="row"><span>✓ Conectado</span><b>'+(S._hcAt?pad(new Date(S._hcAt).getHours())+':'+pad(new Date(S._hcAt).getMinutes()):'')+'</b></div><div class="row"><span>Hoje</span><span>👟 '+fmt0(S.steps[k]||0)+' · 🔥 '+fmt0(S.burn[k]||0)+' kcal'+(hr?' · ❤️ '+hr.avg+' bpm':'')+'</span></div><button class="ghost" id="hcSync">Sincronizar agora</button><button class="ghost" id="hcSet">Permissões do Health Connect</button>';
+  document.getElementById('hcSync').onclick=()=>pullHealth(true).then(()=>toast('Dados do relógio atualizados'));document.getElementById('hcSet').onclick=()=>HL&&HL.openHealthConnectSettings()}
+function renderAjustes(){renderGyms();renderHC();
   document.getElementById('levels').innerHTML=LV.map(l=>'<div class="row"><span>'+l[1]+'</span><b>'+l[0]+'</b></div>').join('');
   ['hM','hT','hN','wFrom','wTo','hPlan','hWake','stepGoal','bottleMl','waterGoalMl'].forEach(i=>document.getElementById(i).value=S[i]);['alarmOn','calOn','wLearn'].forEach(i=>document.getElementById(i).checked=!!S[i]);
   document.getElementById('wtNow').textContent='Lembretes de água hoje: '+waterTimes().map(hhmm).join(', ');
@@ -950,7 +961,7 @@ function renderEu(){
   const all=f?(()=>{const o=[];let d=fromKey(f);while(key(d)<=t){o.push(key(d));d=addD(d,1)}return o})():[];
   const past=all.filter(k=>k<t);const nd=all.length;
   document.getElementById('euSub').innerHTML=nd?nd+(nd===1?' dia':' dias')+' de dados.'+(nd<14?' <b style="color:var(--warn)">Com menos de 2 semanas, os padrões ainda são palpites.</b> Continua usando que fica mais preciso.':' Já dá pra confiar mais nos padrões.'):'Ainda não tem dados. Usa o app por alguns dias e volta aqui.';
-  if(!nd){box.innerHTML='';return}
+  if(!nd){box.innerHTML=bodyHTML();bindBody();return}
   let h='',finds=[];
   // 1. plano cumprido
   const pl=past.filter(k=>S.plan[k]&&S.plan[k].g),dn=pl.filter(k=>S.done[k]);
@@ -1010,7 +1021,7 @@ function renderEu(){
   if(we2.length&&we2[0][1]>=3)finds.push('O motivo que mais aparece quando você falta é <b>'+we2[0][0].toLowerCase()+'</b> ('+we2[0][1]+' vezes).');
   // achados
   const ff=finds.length?finds.map(x=>'<div class="find">💡 '+x+'</div>').join(''):'<div class="sub" style="margin-top:0">Ainda sem achados. Eles aparecem quando houver dados suficientes pra comparar (pelo menos 3 dias de cada lado).</div>';
-  box.innerHTML=card('O que os seus dados dizem',ff)+h;
+  box.innerHTML=bodyHTML()+card('O que os seus dados dizem',ff)+h;bindBody();
 }
 document.getElementById('csv').onclick=async()=>{const lines=['data,dia_semana,onde,plano,treino,pontos,agua_ml,sensacao,motivo_falta'];const f=firstDay();if(!f){toast('Sem dados ainda');return}
   let d=fromKey(f);const t=key(today());while(key(d)<=t){const k=key(d),p=S.plan[k]||{};lines.push([k,DNL[d.getDay()],whereOf(k)||'',p.g==='m'?'manha':p.g==='t'?'tarde':p.g==='n'?'noite':'',S.done[k]||'',S.donePts[k]||'',S.water[k]||0,S.feel[k]||'',S.why[k]||''].join(','));d=addD(d,1)}
@@ -1059,6 +1070,7 @@ function ntDiario(k){const G=S.ntGoals,T=dayTotals(k),d=fromKey(k),isT=k===key(t
    +'<div class="card"><div class="msg">'+fmt0(T.kcal)+' <span style="font-size:15px;color:var(--mut)">de '+fmt0(G.kcal)+' kcal</span></div>'
    +'<div class="bar" style="margin-top:10px"><i style="width:'+Math.min(100,T.kcal/G.kcal*100)+'%;'+(T.kcal>G.kcal*1.05?'background:var(--warn)':'')+'"></i></div>'
    +'<div class="sub">'+(rest>=0?'Faltam '+fmt0(rest)+' kcal':'Passou '+fmt0(-rest)+' kcal da meta')+'</div>'
+   +(()=>{const bo=burnOf(k);const parts=[];if(bo.hc)parts.push('⌚ '+fmt0(bo.hc)+' kcal ativas pelo relógio');if(bo.man)parts.push('🎭 ~'+fmt0(bo.man)+' kcal em atividades registradas');return parts.length?'<div class="sub" style="color:var(--acc)">🔥 Gasto extra: '+parts.join(' · ')+'</div>':''})()
    +'<div class="mac"><div><b>'+fmt0(T.p)+'<span style="font-size:12px"> / '+G.p+' g</span></b><span>Proteína</span>'+pb(T.p,G.p,'#C6F432')+'</div><div><b>'+fmt0(T.c)+'<span style="font-size:12px"> / '+G.c+' g</span></b><span>Carboidrato</span>'+pb(T.c,G.c,'#5CC8FF')+'</div><div><b>'+fmt0(T.f)+'<span style="font-size:12px"> / '+G.f+' g</span></b><span>Gordura</span>'+pb(T.f,G.f,'#FF8A5C')+'</div></div>'
    +(NT.goals?'<div class="grid4" style="margin-top:12px">'+[['kcal','kcal'],['p','Prot. g'],['c','Carbo g'],['f','Gord. g']].map(([f,l])=>'<div><span class="lbl">'+l+'</span><input type="number" inputmode="numeric" data-goal="'+f+'" value="'+G[f]+'"></div>').join('')+'</div><button class="big" id="gOk">Salvar metas</button>':'<button class="ghost" id="gEd">Editar metas</button>')
    +'</div></div><div>';
@@ -1153,16 +1165,83 @@ function recentRefs(){const seen=new Set(),out=[];Object.keys(S.ntMeals).sort().
 document.getElementById('ntCl').onclick=closePicker;
 document.getElementById('ntOv').onclick=e=>{if(e.target.id==='ntOv')closePicker()};
 
+/* ---------- ATIVIDADES (manual e Galaxy Watch via Health Connect) + CORPO ---------- */
+const ATYPES=[['danca','🎭 Dança / teatro',4],['caminhada','🚶 Caminhada',3.5],['caminhada_r','🚶‍♂️ Caminhada rápida',4.3],['bike','🚴 Bike',6.5],['corrida','🏃 Corrida',8],['natacao','🏊 Natação',6],['musc','🏋️ Musculação',5],['outra','✨ Outra',4]];
+const AINT=[['leve','Leve',.75],['mod','Moderada',1],['int','Intensa',1.3]];
+const HC_MAP={dancing:'danca',dance:'danca',socialDance:'danca',cardioDance:'danca',walking:'caminhada',hiking:'caminhada',running:'corrida',runningTreadmill:'corrida',cycling:'bike',bikingStationary:'bike',swimming:'natacao',swimmingPool:'natacao',swimmingOpenWater:'natacao',strengthTraining:'musc',traditionalStrengthTraining:'musc',functionalStrengthTraining:'musc',weightlifting:'musc'};
+function actInit(){['acts','burn','hr'].forEach(f=>{if(!S[f]||typeof S[f]!=='object')S[f]={}});if(!Array.isArray(S.bodyLog))S.bodyLog=[];
+  if(!S.bodySeed){if(!S.bodyLog.some(x=>x.d==='2026-11-06'))S.bodyLog.push({d:'2026-11-06',w:107.4,h:170,fat:35.3,mus:31.6,bmr:2152,visc:16,src:'bioimpedância'});S.bodySeed=1}
+  if(!S.goalSeed){const g=S.ntGoals||{};if(!g.kcal||(g.kcal===2000&&g.p===150&&g.c===200&&g.f===60))S.ntGoals={kcal:2150,p:130,c:250,f:65};S.goalSeed=1}}
+actInit();
+const lastBody=()=>S.bodyLog.slice().sort((a,b)=>a.d<b.d?-1:1).reduce((o,x)=>Object.assign(o,Object.fromEntries(Object.entries(x).filter(([k,v])=>v!==''&&v!=null))),{});
+const weightKg=()=>+lastBody().w||80;
+function actKcal(type,min,int){const t=ATYPES.find(a=>a[0]===type)||ATYPES[7];const i=(AINT.find(a=>a[0]===int)||AINT[1])[2];return Math.round(t[2]*i*weightKg()*min/60)}
+function dayActs(k){return Object.values(S.acts[k]||{}).filter(a=>!a.del).sort((a,b)=>a.t-b.t)}
+function addAct(k,a){S.acts[k]=S.acts[k]||{};const id=a.id||uid();S.acts[k][id]=Object.assign({id,t:Date.now(),u:Date.now()},a);
+  if(!S.done[k]&&a.min>=20){markDone._src=a.src==='watch'?'watch':'';markDone(k,'outra')}else{save();renderAll()}}
+function actsHTML(k){const a=dayActs(k);if(!a.length)return'';
+  return '<div style="margin-top:14px;border-top:1px solid var(--line);padding-top:12px"><div class="tag">ATIVIDADES</div>'+a.map(x=>{const t=ATYPES.find(y=>y[0]===x.type)||ATYPES[7];
+    return '<div class="it"><div class="nm2">'+t[1]+(x.name?' · '+esc(x.name):'')+'<small>'+x.min+' min'+(x.src==='watch'?' · ⌚ do relógio':'')+(x.hr?' · ❤️ '+x.hr+' bpm':'')+'</small></div><b style="font-size:14px">~'+fmt0(x.kcal)+' kcal</b>'+(x.src==='watch'?'':'<button class="x" data-adel="'+x.id+'">×</button>')+'</div>'}).join('')+'</div>'}
+function openActSheet(day){NT.sheet=null;const o=document.getElementById('ntOv');o.classList.add('on');const A={type:'danca',min:60,int:'mod',day:day||key(today()),name:''};
+  const draw=()=>{const b=document.getElementById('ntBody');const kc=actKcal(A.type,+A.min||0,A.int);const t0=key(today()),y0=key(addD(today(),-1));
+    b.innerHTML='<div class="msg" style="padding-right:40px">Registrar atividade</div>'
+     +'<span class="lbl">Tipo</span><div class="qchips" style="margin-top:0">'+ATYPES.map(([v,l])=>'<button data-at="'+v+'" style="'+(A.type===v?'background:var(--acc);color:#111':'')+'">'+l+'</button>').join('')+'</div>'
+     +'<span class="lbl">Nome (opcional)</span><input type="text" id="aNm" value="'+esc(A.name)+'" placeholder="Ex: Apresentação do musical">'
+     +'<div class="grid2"><div><span class="lbl">Duração (min)</span><input type="number" id="aMin" value="'+A.min+'" min="1"></div><div><span class="lbl">Dia</span><select id="aDay"><option value="'+t0+'"'+(A.day===t0?' selected':'')+'>Hoje</option><option value="'+y0+'"'+(A.day===y0?' selected':'')+'>Ontem</option>'+[2,3,4,5,6].map(i=>{const d=addD(today(),-i),k=key(d);return '<option value="'+k+'"'+(A.day===k?' selected':'')+'>'+DN[d.getDay()]+' '+pad(d.getDate())+'/'+pad(d.getMonth()+1)+'</option>'}).join('')+'</select></div></div>'
+     +'<span class="lbl">Intensidade</span><div class="subtabs" style="margin:0">'+AINT.map(([v,l])=>'<button class="tbtn'+(A.int===v?' on':'')+'" data-ai="'+v+'">'+l+'</button>').join('')+'</div>'
+     +'<div class="card" style="margin-top:14px"><div class="msg">~'+fmt0(kc)+' kcal</div><div class="sub">Estimativa para '+String(weightKg()).replace('.',',')+' kg. Com o relógio, o valor medido substitui a estimativa.</div></div>'
+     +'<button class="big" id="aOk">Registrar</button>';
+    b.querySelectorAll('[data-at]').forEach(x=>x.onclick=()=>{A.type=x.dataset.at;draw()});b.querySelectorAll('[data-ai]').forEach(x=>x.onclick=()=>{A.int=x.dataset.ai;draw()});
+    const mi=document.getElementById('aMin');mi.oninput=()=>{A.min=mi.value;b.querySelector('.card .msg').textContent='~'+fmt0(actKcal(A.type,+A.min||0,A.int))+' kcal'};
+    document.getElementById('aNm').oninput=e=>A.name=e.target.value;document.getElementById('aDay').onchange=e=>A.day=e.target.value;
+    document.getElementById('aOk').onclick=()=>{const m=+A.min||0;if(m<1){toast('Coloque a duração');return}addAct(A.day,{type:A.type,name:A.name.trim(),min:m,int:A.int,kcal:actKcal(A.type,m,A.int),src:'manual'});document.getElementById('ntOv').classList.remove('on');toast('Atividade registrada 💪')}};
+  draw()}
+function burnOf(k){const man=dayActs(k).filter(a=>a.src!=='watch').reduce((s,a)=>s+a.kcal,0);const hc=+S.burn[k]||0;return{hc,man,total:Math.max(hc,man+(dayActs(k).filter(a=>a.src==='watch').length?0:0))}}
+
+/* Health Connect (Samsung Health / Galaxy Watch) */
+const HL=CP.Health||null;
+const HC_READ=['steps','calories','heartRate','workouts','weight','bodyFat'];
+async function hcConnect(){if(!HL){toast('Só no APK');return}try{const av=await HL.isAvailable();if(!av.available){toast('Health Connect indisponível: '+(av.reason||''));return}
+  await HL.requestAuthorization({read:HC_READ,write:[]});S.hcOn=true;save();await pullHealth(true);renderAll()}catch(e){toast('Não deu: '+(e.message||e))}}
+async function pullHealth(force){if(!isApp||!HL||!S.hcOn)return;const now=Date.now();if(!force&&S._hcAt&&now-S._hcAt<5*60000)return;S._hcAt=now;
+  const from=addD(today(),-13).toISOString(),to=new Date().toISOString();let ch=false;
+  const agg=async(dataType,aggregation)=>{try{return (await HL.queryAggregated({dataType,startDate:from,endDate:to,bucket:'day',aggregation})).samples||[]}catch(e){return[]}};
+  try{
+    (await agg('steps','sum')).forEach(x=>{const k=key(new Date(x.startDate));const v=Math.round(x.value||0);if(v>(S.steps[k]||0)){S.steps[k]=v;ch=true;if(v>=S.stepGoal&&!S.stepPts[k]){S.stepPts[k]=1;S.earned+=5}}});
+    (await agg('calories','sum')).forEach(x=>{const k=key(new Date(x.startDate));const v=Math.round(x.value||0);if(v&&v!==S.burn[k]){S.burn[k]=v;ch=true}});
+    (await agg('heartRate',['average','max'])).forEach(x=>{const k=key(new Date(x.startDate));const v=x.values||{};if(v.average){S.hr[k]={avg:Math.round(v.average),max:Math.round(v.max||0)};ch=true}});
+    try{const w=await HL.queryWorkouts({startDate:from,endDate:to,limit:50});(w.workouts||[]).forEach(o=>{const k=key(new Date(o.startDate));const id='hc'+(o.platformId||o.startDate);
+      if(S.acts[k]&&S.acts[k][id])return;const min=Math.round((o.duration||0)/60);if(min<5)return;const type=HC_MAP[o.workoutType]||'outra';
+      S.acts[k]=S.acts[k]||{};S.acts[k][id]={id,type,name:'',min,int:'mod',kcal:Math.round(o.totalEnergyBurned||actKcal(type,min,'mod')),src:'watch',t:new Date(o.startDate).getTime(),u:Date.now()};ch=true;
+      if(!S.done[k]&&min>=20){markDone._src='watch';markDone(k,type==='musc'?'gym':'outra')}})}catch(e){}
+    try{const ws=(await HL.readSamples({dataType:'weight',startDate:addD(today(),-30).toISOString(),endDate:to,limit:20})).samples||[];
+      ws.forEach(x=>{const d=key(new Date(x.startDate));if(!S.bodyLog.some(b=>b.d===d&&b.w)){S.bodyLog.push({d,w:Math.round(x.value*10)/10,src:'balança/relógio'});ch=true}})}catch(e){}
+  }catch(e){console.log('hc',e)}
+  if(ch){save();renderAll()}}
+
+/* corpo (bioimpedância e peso) */
+function bodyHTML(){const b=lastBody(),h=(+b.h||170)/100,imc=b.w?b.w/(h*h):0;const L=S.bodyLog.slice().sort((a,c)=>a.d<c.d?-1:1);const first=L.find(x=>x.w);
+  const dif=first&&b.w&&first!==L[L.length-1]?Math.round((b.w-first.w)*10)/10:null;const dd=b.d?b.d.split('-').reverse().slice(0,2).join('/'):'';
+  const cell=(v,l)=>'<div><b>'+v+'</b><span>'+l+'</span></div>';
+  return '<div class="sec"><h2>Corpo</h2><div class="card"><div class="mac" style="margin-top:0;grid-template-columns:repeat(3,1fr)">'
+   +cell(b.w?String(b.w).replace('.',',')+' kg':'–','Peso'+(dif!==null?' ('+(dif>0?'+':'')+String(dif).replace('.',',')+')':''))+cell(imc?imc.toFixed(1).replace('.',','):'–','IMC')+cell(b.fat?String(b.fat).replace('.',',')+'%':'–','Gordura')
+   +cell(b.mus?String(b.mus).replace('.',',')+'%':'–','Músculo')+cell(b.bmr?fmt0(b.bmr):'–','Basal (kcal)')+cell(b.visc||'–','Visceral')+'</div>'
+   +'<div class="sub">Última medição: '+dd+'. Refaça a bioimpedância a cada 1 ou 2 meses, sempre nas mesmas condições.</div><button class="ghost" id="bNew">+ Nova medição</button><div id="bForm"></div></div></div>'}
+function bindBody(){const bn=document.getElementById('bNew');if(!bn)return;bn.onclick=()=>{const f=document.getElementById('bForm');
+  f.innerHTML='<div class="grid2">'+[['bw','Peso (kg)'],['bfat','Gordura %'],['bmus','Músculo %'],['bbmr','Basal kcal'],['bvis','Visceral'],['bh','Altura cm']].map(([i,l])=>'<div><span class="lbl">'+l+'</span><input type="number" inputmode="decimal" id="'+i+'"'+(i==='bh'?' value="'+(lastBody().h||170)+'"':'')+'></div>').join('')+'</div><button class="big" id="bOk">Salvar medição</button>';
+  document.getElementById('bOk').onclick=()=>{const v=i=>{const x=String(document.getElementById(i).value).replace(',','.');return x?+x:''};const e={d:key(today()),w:v('bw'),fat:v('bfat'),mus:v('bmus'),bmr:v('bbmr'),visc:v('bvis'),h:v('bh')};
+    if(!e.w){toast('Coloque pelo menos o peso');return}S.bodyLog=S.bodyLog.filter(x=>x.d!==e.d);S.bodyLog.push(e);save();renderEu();toast('Medição salva')}}}
+
 function renderAll(){renderHoje();renderPlano();renderPremios();renderEu();renderAjustes();renderSync();renderNutri()}
 renderAll();
 initNotif().then(()=>{renderHoje();reschedule()});
 syncFences().then(pullCheckins);
 syncInit();
 if(!isApp){document.body.classList.add('web');if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{})}
-pullActions();pullSteps();pullCalendar();filesAuto();
+pullActions();pullSteps();pullCalendar();filesAuto();pullHealth();
 logE({e:'open'});
 if(S._recovMsg){delete S._recovMsg;save();setTimeout(()=>toast('+45 pts recuperados. Foi mal pela reinstalação!'),600)}
-document.addEventListener('visibilitychange',()=>{if(!document.hidden){logE({e:'open'});pullActions();pullSteps();pullCalendar();filesAuto();pullCheckins();renderHoje();renderGyms();reschedule()}});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){logE({e:'open'});pullActions();pullSteps();pullCalendar();filesAuto();pullHealth();pullCheckins();renderHoje();renderGyms();reschedule()}});
 </script>
 </body>
 </html>
