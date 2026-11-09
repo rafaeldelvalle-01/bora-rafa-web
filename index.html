@@ -364,7 +364,7 @@ body.web .apponly{display:none!important}
   <div class="card" id="levels"></div>
   <h2 class="apponly">Atualização</h2>
   <div class="card apponly">
-    <div class="row"><span>Versão instalada</span><b id="verN">v1.8.0</b></div>
+    <div class="row"><span>Versão instalada</span><b id="verN">v1.8.1</b></div>
     <div class="sub">O botão abre a página de versões no navegador. Se lá aparecer um número maior, baixe o BoraRafa.apk e instale por cima.</div>
     <button class="big" id="upd">Verificar atualização</button>
   </div>
@@ -488,7 +488,7 @@ function toast(t){const e=document.getElementById('toast');e.textContent=t;e.cla
 const bal=()=>S.earned-S.spent;
 function addPts(n,why){S.earned+=n;save();toast('+'+n+' pts · '+why);pushState()}
 function level(){const P=S.earned;let i=0;LV.forEach((l,j)=>{if(P>=l[0])i=j});const c=LV[i],n=LV[i+1];return{name:c[1],pct:n?(P-c[0])/(n[0]-c[0])*100:100,next:n?n[0]-P:0,nx:n?n[1]:null}}
-function weekStats(m){const ks=weekDays(m).map(key);const p=ks.filter(k=>S.plan[k]&&S.plan[k].g);return{planned:p,done:p.filter(k=>S.done[k])}}
+function weekStats(m){const ks=weekDays(m).map(key);const p=ks.filter(k=>S.plan[k]&&S.plan[k].g&&!(S.rest&&S.rest[k]));return{planned:p,done:p.filter(k=>S.done[k])}}
 function checkWeekBonus(d){const m=monday(d);const k='week-'+key(m);const w=weekStats(m);if(w.planned.length&&w.done.length===w.planned.length&&!S.bonus[k]){S.bonus[k]=1;S.earned+=30;save();setTimeout(()=>toast('+30 pts · semana completa!'),2500)}}
 function streakInfo(){let n=0;const used={};let m=monday(today());const c=weekStats(m);if(c.planned.length&&c.done.length===c.planned.length)n++;m=addD(m,-7);
   for(let i=0;i<104;i++){const w=weekStats(m);if(w.planned.length&&w.done.length===w.planned.length)n++;
@@ -531,7 +531,7 @@ const SYNC={ready:false,user:null,docRef:null,lastSync:0,applying:false,timer:nu
 const LOCAL_ONLY=['cal','lastAutoBk','migN','_exact','_files','_stepsOk','_recovMsg','updatedAt','syncedOnce','hcOn','_hcAt'];
 const DAYMAX=['steps','burn'];
 const DAYUNION=['done','planned','bonus','stepPts','locWork'];
-const DAYMAPS=['plan','where','feel','why','dur','letter','donePts','checks','pick','hr'];
+const DAYMAPS=['plan','where','feel','why','dur','letter','donePts','checks','pick','hr','rest'];
 function mergeState(L,R){const o=JSON.parse(JSON.stringify(L));const newer=(R.updatedAt||0)>(L.updatedAt||0);
   DAYMAX.forEach(f=>{o[f]=Object.assign({},L[f]||{});Object.entries(R[f]||{}).forEach(([k,v])=>{o[f][k]=Math.max(+o[f][k]||0,+v||0)})});
   DAYUNION.forEach(f=>{o[f]=Object.assign({},L[f]||{});Object.entries(R[f]||{}).forEach(([k,v])=>{if(v&&!o[f][k])o[f][k]=v})});
@@ -599,7 +599,7 @@ async function initNotif(){
 }
 
 function pushState(){if(!isApp||!BR)return;const t=today(),done={},plan={},water={};
-  for(let i=-7;i<16;i++){const k=key(addD(t,i));if(S.done[k])done[k]=true;if(S.plan[k]&&S.plan[k].g)plan[k]=S.plan[k].g;if(S.water[k])water[k]=S.water[k]}
+  for(let i=-7;i<16;i++){const k=key(addD(t,i));if(S.done[k]||(S.rest&&S.rest[k]))done[k]=true;if(S.plan[k]&&S.plan[k].g)plan[k]=S.plan[k].g;if(S.water[k])water[k]=S.water[k]}
   const k=key(t),p=S.plan[k]||{},fe=feriado(k);let title='';
   if(p.g)title='Treino '+todayLetter(k)+' · '+(p.g==='m'?'manhã '+S.hM:p.g==='t'?'tarde '+S.hT:'noite '+S.hN);else if(fe)title='🎉 '+fe+' · folga';else title='Folga do treino hoje';
   const mo=monday(t),wk=weekDays(mo).map(d=>{const kk=key(d);return{k:kk,l:DN[d.getDay()][0],plan:!!(S.plan[kk]&&S.plan[kk].g)}});
@@ -703,19 +703,23 @@ function renderHoje(){
   // hoje
   const c=document.getElementById('todayCard'),p=S.plan[k]||{},d=S.done[k];let html='';
   const fer=feriado(k);
-  if(p.g){let when=p.g==='m'?'de manhã ('+S.hM+')':p.g==='t'?'à tarde ('+S.hT+')':'à noite ('+S.hN+')';
+  if(!S.rest)S.rest={};const rs=S.rest[k];
+  if(rs&&!d){html='<div class="msg">😴 Descanso hoje. Faz parte do treino.</div><div class="sub">'+esc(rs.why||'Recuperação')+(rs.moved?' · treino passado pra '+esc(rs.moved):'')+'. Sem perder pontos e sem quebrar a sequência.</div><button class="ghost" id="restUndo">Desfazer descanso</button>'}
+  else if(p.g){let when=p.g==='m'?'de manhã ('+S.hM+')':p.g==='t'?'à tarde ('+S.hT+')':'à noite ('+S.hN+')';
     const cf=!d&&conflict(k,p.g);if(cf)when+='. <span style="color:var(--warn)">⚠️ Você tem "'+esc(cf)+'" nesse horário</span>';
     html=d?'<div class="msg">'+pick(POS,s)+(S.dur[k]?'</div><div class="sub">Você ficou '+S.dur[k]+' min na academia.':'')+'</div><button class="big done" id="undo">✓ '+(d==='casa'?'Treino em casa feito':d==='outra'?'Dia ativo':'Treino feito')+'</button>'
-    :'<div class="msg">'+pick(PRE,s)+'</div><div class="sub">Hoje é dia de academia '+when+'.'+(p.g==='m'?' O Lucas acorda cedo hoje, aproveita.':'')+'</div><button class="big" id="fui">Fui! Marcar treino</button><button class="ghost" id="casa">Não vai dar? Treino de 15 min em casa</button>';}
+    :'<div class="msg">'+pick(PRE,s)+'</div><div class="sub">Hoje é dia de academia '+when+'.'+(p.g==='m'?' O Lucas acorda cedo hoje, aproveita.':'')+'</div><button class="big" id="fui">Fui! Marcar treino</button><button class="ghost" id="casa">Não vai dar? Treino de 15 min em casa</button><button class="ghost" id="rest">😴 Hoje é descanso</button>';}
   else{html=d?'<div class="msg">'+(d==='outra'?'Dia ativo! Conta, sim. 💪':'Treino extra! Respeito, Rafa.')+'</div><button class="big done" id="undo">✓ '+(d==='outra'?'Atividade registrada':'Treino extra feito')+'</button>'
     :'<div class="msg">'+(fer?'🎉 '+fer+'! '+pick(FER,s):p.pres?pick(PRES,s):pick(REST,s))+'</div><div class="sub">Hoje não tem treino no plano. Se der vontade, treino extra vale +15.</div><button class="ghost" id="fui">Fui mesmo assim</button>';}
-  if((p.g||(d&&d!=='casa'&&d!=='outra'))&&d!=='casa'&&d!=='outra')html+=treinoBox(k);
+  if(!(rs&&!d)&&(p.g||(d&&d!=='casa'&&d!=='outra'))&&d!=='casa'&&d!=='outra')html+=treinoBox(k);
   html+=actsHTML(k)+'<button class="addb" id="actAdd">+ Outra atividade (dança, caminhada…)</button>';
   if(d&&d!=='casa'||d==='casa')html+=feelBox(k);
   html+=whereBox(k,dow);
   c.innerHTML=html;bindCtx(k);
   const f=document.getElementById('fui');if(f)f.onclick=()=>markDone(k,'gym');
   const cs=document.getElementById('casa');if(cs)cs.onclick=()=>startTimer(k);
+  const rb=document.getElementById('rest');if(rb)rb.onclick=()=>openRestSheet(k);
+  const ru=document.getElementById('restUndo');if(ru)ru.onclick=function(){if(!this.dataset.c){this.dataset.c=1;this.textContent='Toque de novo pra desfazer';return}const r=S.rest[k];if(r&&r.movedKey&&S.plan[r.movedKey]&&!S.done[r.movedKey])S.plan[r.movedKey].g='';delete S.rest[k];if(S.why[k]&&S.why[k].startsWith('Descanso'))delete S.why[k];save();reschedule();renderAll()};
   document.getElementById('actAdd').onclick=()=>openActSheet(k);
   c.querySelectorAll('[data-adel]').forEach(b=>b.onclick=()=>{if(!b.dataset.c){b.dataset.c=1;b.textContent='?';return}Object.assign(S.acts[k][b.dataset.adel],{del:1,u:Date.now()});save();renderHoje()});
   bindTreino(k);
@@ -787,7 +791,7 @@ function whereBox(k,dow){if(dow===0||dow===6||feriado(k))return'';const w=whereO
 const FEEL=[['1','😮‍💨 Pesado'],['2','🙂 Ok'],['3','🔥 Ótimo']];
 function feelBox(k){return '<div style="margin-top:14px"><div class="tag">COMO FOI?</div><div class="qk" data-q="feel">'+FEEL.map(([v,l])=>'<button data-v="'+v+'" class="'+(S.feel[k]==v?'on':'')+'">'+l+'</button>').join('')+'</div></div>'}
 const WHY=['Cansaço','Trabalho apertado','Preguiça','Compromisso','Clima','Dor/indisposição','Esqueci','Outro'];
-function pendingWhy(){const t=today();for(let i=1;i<=7;i++){const k=key(addD(t,-i));const p=S.plan[k];if(p&&p.g&&!S.done[k]&&!S.why[k])return k}return null}
+function pendingWhy(){const t=today();for(let i=1;i<=7;i++){const k=key(addD(t,-i));const p=S.plan[k];if(p&&p.g&&!S.done[k]&&!S.why[k]&&!(S.rest&&S.rest[k]))return k}return null}
 function bindCtx(k){document.querySelectorAll('#todayCard .wh button').forEach(b=>b.onclick=()=>{S.where[k]=b.dataset.w;logE({e:'where',k,w:b.dataset.w});save();renderHoje()});
   document.querySelectorAll('#todayCard [data-q=feel] button').forEach(b=>b.onclick=()=>{S.feel[k]=+b.dataset.v;save();toast('Anotado');renderHoje()})}
 function renderWhy(){const k=pendingWhy(),el=document.getElementById('whyCard');if(!k){el.style.display='none';return}
@@ -836,6 +840,21 @@ function fichaHTML(n){const f=FX[n];if(!f)return'';
   +'<div class="tag" style="margin-top:6px;color:var(--warn)">ERRO COMUM</div><div class="sub" style="margin-top:4px">'+f.e+'</div>'
   +'<a class="big" style="display:block;text-align:center;text-decoration:none;margin-top:14px" href="https://www.youtube.com/results?search_query='+encodeURIComponent(f.y)+'">▶ Ver vídeo no YouTube</a></div>'}
 function openFicha(n){const o=document.getElementById('fxOv');document.getElementById('fxBody').innerHTML='<div class="msg" style="padding-right:40px">'+esc(n)+'</div>'+fichaHTML(n);o.classList.add('on');document.getElementById('fxBody').scrollTop=0}
+
+/* descanso consciente */
+const RWHY=['Recuperação de esforço','Cansaço','Dor / incômodo','Doente','Compromisso','Outro'];
+function nextFreeDay(k){const m=monday(fromKey(k));for(let i=1;i<7;i++){const d=addD(fromKey(k),i);if(monday(d).getTime()!==m.getTime())break;const kk=key(d);const p=S.plan[kk]||{};if(!p.g&&!S.done[kk]&&!(S.rest&&S.rest[kk]))return kk}return null}
+function openRestSheet(k){const o=document.getElementById('ntOv');o.classList.add('on');NT.sheet=null;const R={why:'Recuperação de esforço',move:false};const nf=nextFreeDay(k),p=S.plan[k]||{};
+  const draw=()=>{const b=document.getElementById('ntBody');const nd=nf?fromKey(nf):null;
+    b.innerHTML='<div class="msg" style="padding-right:40px">😴 Hoje é descanso</div><div class="sub">Descansar também é treino. O dia não conta como falta, não tira pontos e não quebra a sequência.</div>'
+     +'<span class="lbl">Motivo</span><div class="qchips" style="margin-top:0">'+RWHY.map(w=>'<button data-rw="'+w+'" style="'+(R.why===w?'background:var(--acc);color:#111':'')+'">'+w+'</button>').join('')+'</div>'
+     +(p.g&&nf?'<div class="row" style="margin-top:12px"><span>Passar o treino pra '+DNL[nd.getDay()]+' ('+pad(nd.getDate())+'/'+pad(nd.getMonth()+1)+')</span><input type="checkbox" class="sw" id="rMove"'+(R.move?' checked':'')+'></div>':'')
+     +'<button class="big" id="rOk">Confirmar descanso</button>';
+    b.querySelectorAll('[data-rw]').forEach(x=>x.onclick=()=>{R.why=x.dataset.rw;draw()});const mv=document.getElementById('rMove');if(mv)mv.onchange=()=>R.move=mv.checked;
+    document.getElementById('rOk').onclick=()=>{S.rest=S.rest||{};const e={why:R.why,u:Date.now()};
+      if(R.move&&nf&&p.g){S.plan[nf]=Object.assign({},S.plan[nf]||{},{g:p.g});const nd2=fromKey(nf);e.moved=DNL[nd2.getDay()];e.movedKey=nf}
+      S.rest[k]=e;S.why[k]='Descanso: '+R.why;logE({e:'descanso',k,why:R.why});save();reschedule();o.classList.remove('on');renderAll();toast(e.moved?'Descanso marcado. Treino passado pra '+e.moved+'.':'Descanso marcado. Bom descanso, Rafa 😴')}};
+  draw()}
 
 /* treino do dia */
 function treinoBox(k){const L=todayLetter(k),T=TR[L],ch=S.checks[k]||[];
@@ -964,9 +983,10 @@ function renderEu(){
   if(!nd){box.innerHTML=bodyHTML();bindBody();return}
   let h='',finds=[];
   // 1. plano cumprido
-  const pl=past.filter(k=>S.plan[k]&&S.plan[k].g),dn=pl.filter(k=>S.done[k]);
+  const pl=past.filter(k=>S.plan[k]&&S.plan[k].g&&!(S.rest&&S.rest[k])),dn=pl.filter(k=>S.done[k]);
   const extra=all.filter(k=>S.done[k]&&!(S.plan[k]&&S.plan[k].g)).length,casa=all.filter(k=>S.done[k]==='casa').length;
-  h+=card('Combinado x feito','<div class="vs"><div><b>'+(pl.length?pct(dn.length,pl.length)+'%':'–')+'</b><span>dos treinos planejados você fez ('+dn.length+' de '+pl.length+')</span></div><div><b>'+Object.keys(S.done).length+'</b><span>treinos no total · '+extra+' extras · '+casa+' em casa</span></div></div>');
+  const restN=all.filter(k=>S.rest&&S.rest[k]).length;
+  h+=card('Combinado x feito','<div class="vs"><div><b>'+(pl.length?pct(dn.length,pl.length)+'%':'–')+'</b><span>dos treinos planejados você fez ('+dn.length+' de '+pl.length+')</span></div><div><b>'+Object.keys(S.done).length+'</b><span>treinos no total · '+extra+' extras · '+casa+' em casa · '+restN+' descanso'+(restN===1?'':'s')+'</span></div></div>');
   // 2. home office x presencial
   const grp={ho:[],pres:[],fds:[]};all.forEach(k=>{const w=whereOf(k);if(w)grp[w].push(k)});
   const gstat=g=>{const ks=grp[g],p=ks.filter(k=>k<t&&S.plan[k]&&S.plan[k].g);return{n:ks.length,tr:ks.filter(k=>S.done[k]).length,pl:p.length,pd:p.filter(k=>S.done[k]).length,ag:ks.length?(ks.reduce((a,k)=>a+(S.water[k]||0)/1000,0)/ks.length):0}};
